@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from PIL import Image
 import sqlite3 
 import time  # Real-time response speed calculate karne ke liye
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Load environment variables from .env file
 load_dotenv()
@@ -60,7 +60,8 @@ def save_to_db(summary, code, gemini, groq, local, consensus):
     """Database permanent commit run insert statement"""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    IST = timezone(timedelta(hours=5, minutes=30))
+    timestamp = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
         INSERT INTO debug_logs (timestamp, summary, code, gemini_res, groq_res, ollama_res, consensus_text)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -367,7 +368,7 @@ with st.sidebar:
 
 # Main Dashboard Frame
 st.markdown('<div class="main-title"><i class="fa-solid fa-code-branch" style="margin-right:15px; color:#8e54e9;"></i>Multimodal Debugger</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Advanced Multi-Agent Consensus and Voting System</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Multi Agent Consensus</div>', unsafe_allow_html=True)
 
 # Symmetric Layout Config
 input_col1, input_col2 = st.columns(2)
