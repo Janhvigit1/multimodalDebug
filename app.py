@@ -28,7 +28,11 @@ else:
     st.error("Missing GROQ_API_KEY in .env")
 
 # Streamlit Page Setup
-st.set_page_config(layout="wide", page_title="Multimodal Debugger")
+st.set_page_config(
+    layout="wide",
+    page_title="Multimodal Debugger",
+    page_icon="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='20' cy='50' r='12' fill='%234285F4'/><circle cx='50' cy='20' r='12' fill='%23F4B400'/><circle cx='80' cy='50' r='12' fill='%230F9D58'/><line x1='32' y1='50' x2='38' y2='50' stroke='%238e54e9' stroke-width='4'/><line x1='62' y1='50' x2='68' y2='50' stroke='%238e54e9' stroke-width='4'/><line x1='50' y1='32' x2='50' y2='38' stroke='%238e54e9' stroke-width='4'/><line x1='28' y1='40' x2='40' y2='28' stroke='%238e54e9' stroke-width='3'/><line x1='60' y1='28' x2='72' y2='40' stroke='%238e54e9' stroke-width='3'/></svg>"
+)
 
 # ================= 💾 SQLITE DATABASE ENGINE INITIATION =================
 DB_FILE = "debugger_history.db"
@@ -473,14 +477,21 @@ if execute_click:
             groq_res = f"⚠️ Groq Engine failed: {str(e)}"
             groq_time = 0.0
 
-        # ----- ENGINE 3: LOCAL OLLAMA AGENT -----
+        # ----- ENGINE 3: META LLAMA AGENT -----
         t_start = time.time()
         try:
-            res = ollama.chat(model='llama3:8b', messages=[{'role': 'user', 'content': combined_prompt}])
-            ollama_res = res['message']['content']
-            ollama_time = round(time.time() - t_start, 2)
+            if groq_client:
+                chat_completion = groq_client.chat.completions.create(
+                    messages=[{"role": "user", "content": combined_prompt}],
+                    model="llama-3.1-8b-instant",
+                )
+                ollama_res = chat_completion.choices[0].message.content
+                ollama_time = round(time.time() - t_start, 2)
+            else:
+                ollama_res = "⚠️ Meta Llama Agent unavailable. Please check your GROQ_API_KEY."
+                ollama_time = 0.0
         except Exception as e:
-            ollama_res = "⚠️ Local Agent (Ollama) is not responding. Please ensure Ollama is running on your Mac with 'ollama run llama3:8b'."
+            ollama_res = f"⚠️ Meta Llama Agent failed: {str(e)}"
             ollama_time = 0.0
 
         # ----- MASTER CONSENSUS ENGINE (FAILSAFE DUAL-BACKUP TRIGGER) -----
@@ -549,7 +560,7 @@ if st.session_state.current_results:
             
     with col3:
         with st.container(border=True):
-            st.markdown('<div class="model-heading"><i class="fa-solid fa-laptop-code icon-local"></i>Local Agent</div>', unsafe_allow_html=True)
+            st.markdown('<div class="model-heading"><i class="fa-solid fa-laptop-code icon-local"></i>Meta Llama Agent</div>', unsafe_allow_html=True)
             st.markdown(res_data["ollama_res"])
             if "ollama_time" in res_data and res_data["ollama_time"] > 0.0:
                 st.caption(f"⚡ Latency: **{res_data['ollama_time']}s**")
@@ -579,7 +590,7 @@ if st.session_state.current_results:
         with chart_col1:
             st.caption("Inference Latency (Lower is Better - in Seconds)")
             chart_data = {
-                "Engine": ["Gemini 2.5 Flash", "Groq Llama 3.3", "Local Ollama"],
+                "Engine": ["Gemini 2.5 Flash", "Groq Llama 3.3", "Meta Llama Agent"],
                 "Latency (Seconds)": [g_time, q_time, o_time]
             }
             st.bar_chart(data=chart_data, x="Engine", y="Latency (Seconds)", color="#8e54e9")
@@ -589,9 +600,9 @@ if st.session_state.current_results:
                 <div style="padding-left: 20px;">
                     <h5 style="color: #f0f6fc; margin-bottom: 15px;"><i class="fa-solid fa-gauge-high" style="color:#2ea44f; margin-right: 10px;"></i>Latency Diagnostic Insights</h5>
                     <ul style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.6;">
-                        <li><b>Groq Engine:</b> Cloud API LPU optimization ke zariye sabse fast text response process karta hai.</li>
-                        <li><b>Gemini Engine:</b> Multimodal vision extraction aur deep reasoning operations sath mein run karta hai.</li>
-                        <li><b>Local Ollama:</b> Speed purely host computer ke raw hardware capacity (RAM, CPU, and GPU cores) par nirbhar karti hai.</li>
+                        <li><b>Groq Engine:</b> Processes the fastest text responses via Cloud API LPU optimization.</li>
+                        <li><b>Gemini Engine:</b> Runs multimodal vision extraction and deep reasoning operations simultaneously.</li>
+                        <li><b>Local Ollama:</b> Speed depends entirely on the host computer's raw hardware capacity (RAM, CPU, and GPU cores).</li>
                     </ul>
                 </div>
             """, unsafe_allow_html=True)
@@ -607,7 +618,7 @@ if st.session_state.current_results:
                         <th style="padding: 12px;">Debugging Parameters</th>
                         <th style="padding: 12px; color: #4285F4;">Gemini 2.5 Flash</th>
                         <th style="padding: 12px; color: #F4B400;">Groq Llama 3.3</th>
-                        <th style="padding: 12px; color: #0F9D58;">Local Agent (Llama3)</th>
+                        <th style="padding: 12px; color: #0F9D58;">Meta Llama Agent (8B)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -627,7 +638,7 @@ if st.session_state.current_results:
                         <td style="padding: 12px; font-weight: 600;">Offline Operations</td>
                         <td style="padding: 12px; color: #f85149;"><i class="fa-solid fa-circle-xmark"></i> Internet Required</td>
                         <td style="padding: 12px; color: #f85149;"><i class="fa-solid fa-circle-xmark"></i> Internet Required</td>
-                        <td style="padding: 12px; color: #2ea44f;"><i class="fa-solid fa-circle-check"></i> 100% Local (Private)</td>
+                        <td style="padding: 12px; color: #f85149;"><i class="fa-solid fa-circle-xmark"></i> Internet Required</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #21262d;">
                         <td style="padding: 12px; font-weight: 600;">Logical Reasoning Level</td>
